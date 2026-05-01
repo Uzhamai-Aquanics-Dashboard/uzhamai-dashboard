@@ -1320,7 +1320,10 @@ function renderPayments() {
       <td class="profit-positive">₹${p.amount.toLocaleString('en-IN')}</td>
       <td><span class="badge ${p.type==='full'?'badge-green':p.type==='advance'?'badge-orange':'badge-blue'}">${p.type}</span></td>
       <td>${p.notes || '-'}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deletePayment(${p.id})">Delete</button></td>
+      <td style="display:flex; gap:5px">
+        <button class="btn btn-sm btn-primary" onclick="editPayment(${p.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePayment(${p.id})">Delete</button>
+      </td>
     </tr>`).join('');
 }
 
