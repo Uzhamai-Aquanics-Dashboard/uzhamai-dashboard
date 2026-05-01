@@ -3,9 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Uzhamai Aquanics — Dashboard</title>
 <link rel="icon" type="image/png" href="lo2.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 <style>
   :root {
     --navy: #ffffff;
@@ -180,7 +188,11 @@
     background: rgba(255, 255, 255, 0.7);
     backdrop-filter: blur(8px);
     border-bottom: 1px solid #edf2f7;
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
   }
+  /* Chrome, Safari and Opera - hide scrollbar but keep functionality */
+  .nav-tabs::-webkit-scrollbar { display: none; }
 
   .nav-tab {
     padding: 8px 18px;
@@ -271,6 +283,8 @@
   .form-group label { font-size: 12px; color: #7a9cc0; text-transform: uppercase; letter-spacing: 1px; }
 
   .form-group input, .form-group select, .form-group textarea {
+    width: 100%;
+    min-height: 40px;
     padding: 10px 14px;
     background: var(--navy);
     border: 1px solid var(--border);
@@ -395,7 +409,24 @@
     gap: 12px;
   }
 
-  @media(max-width:600px){.stats-grid{grid-template-columns:1fr!important}.stats-grid .card{grid-column:1/-1!important}}
+  /* MOBILE OPTIMIZATIONS */
+  @media(max-width:600px) {
+    .header { padding: 10px 15px; }
+    .header-logo .brand-text { font-size: 16px; }
+    .header-date { font-size: 11px; }
+    .nav-tabs { padding: 10px 15px; }
+    .main { padding: 15px; }
+    .login-box { padding: 30px 20px; width: 92%; }
+    .stats-grid { grid-template-columns: 1fr !important; }
+    .stats-grid .card { grid-column: 1 / -1 !important; }
+    .summary-bar { gap: 15px; padding: 15px; justify-content: space-between; }
+    .stat-val { font-size: 18px; }
+    .stat-card { padding: 15px 12px; }
+    /* Ensure date inputs are easy to tap on phone */
+    input[type="date"] {
+      min-height: 44px !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -424,7 +455,7 @@
         <div class="brand-text">
         UZHAMAI <span style="color: var(--cyan); font-size: inherit;">AQUANICS</span>
         </div>
-        <span class="sub-logo">Business Dashboard</span>
+        <span class="sub-logo">Business Dashboard <span style="font-size: 8px; opacity: 0.5;">v1.0.1</span></span>
       </div>
     </div>
     <div class="header-date" id="headerDate"></div>
@@ -481,7 +512,13 @@
     <!-- ORDERS -->
     <div class="section" id="sec-orders">
       <div class="card">
-        <div class="card-title">New Order</div>
+        <div class="card-title" id="orderFormTitle">New Order</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Order Date</label>
+            <input type="date" id="o-date">
+          </div>
+        </div>
         <div class="form-row">
           <div class="form-group">
             <label>Customer Name</label>
@@ -524,7 +561,8 @@
           <label>Notes</label>
           <input type="text" id="o-notes" placeholder="Optional notes">
         </div>
-        <button class="btn btn-primary" onclick="addOrder()">Add Order</button>
+        <button class="btn btn-primary" id="orderBtn" onclick="addOrder()">Add Order</button>
+        <button class="btn btn-sm" id="cancelEditBtn" style="display:none; margin-left:10px; background:#cbd5e1" onclick="resetOrderForm()">Cancel</button>
       </div>
 
       <div class="card">
@@ -533,6 +571,7 @@
           <div style="display:flex;gap:8px;align-items:center">
             <input type="date" id="filterDate" onchange="renderOrders()" style="padding:6px 10px;background:var(--navy);border:1px solid var(--border);border-radius:6px;color:var(--blue);font-size:12px;font-family:inherit;font-weight:600;">
             <button class="btn btn-sm" style="background:var(--border);color:#7a9cc0" onclick="document.getElementById('filterDate').value='';renderOrders()">Clear</button>
+            <button class="btn btn-success btn-sm" onclick="downloadPDF()">Download PDF</button>
           </div>
         </div>
         <div class="table-wrap">
@@ -705,15 +744,57 @@ let data = {
   customers: [],
   payments: []
 };
+let editingOrderId = null;
+let db;
+
+// Firebase Configuration - REPLACE THIS WITH YOUR OWN CONFIG FROM FIREBASE CONSOLE
+const firebaseConfig = {
+  apiKey: "AIzaSy...", // உங்கள் உண்மையான API Key-ஐ இங்கே போடவும்
+  authDomain: "your-project.firebaseapp.com",
+  projectId: "your-project-id",
+  storageBucket: "your-project.appspot.com",
+  messagingSenderId: "123456789",
+  appId: "1:123456789:web:abcdef"
+};
+
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+db = firebase.firestore();
+const docRef = db.collection("ua_dashboard").doc("app_data");
 
 // Load from localStorage
 function loadData() {
-  const saved = localStorage.getItem('uzhamai_data');
-  if (saved) data = JSON.parse(saved);
+  if (firebaseConfig.apiKey.includes("YOUR_")) {
+    alert("Firebase API Key இன்னும் செட் செய்யப்படவில்லை! Console-ல் விவரங்களை மாற்றவும்.");
+    return;
+  }
+
+  // Real-time listener: Listen for changes from any device
+  docRef.onSnapshot((doc) => {
+    if (doc.exists) {
+      console.log("Cloud-லிருந்து டேட்டா வந்துவிட்டது!");
+      data = doc.data();
+      // Ensure all arrays exist
+      data.orders = data.orders || [];
+      data.stock = data.stock || [];
+      data.customers = data.customers || [];
+      data.payments = data.payments || [];
+      renderAll();
+    } else {
+      console.log("Cloud-ல் டேட்டா இல்லை. புதியதாக உருவாக்கப்படுகிறது...");
+      saveData();
+    }
+  }, (error) => {
+    console.error("Error loading data from Cloud:", error);
+    if (error.code === 'permission-denied') {
+      alert("Firebase Rules-ல் 'Test Mode' ஆன் செய்யப்பட்டுள்ளதா என்று பாருங்கள்!");
+    }
+  });
 }
 
 function saveData() {
-  localStorage.setItem('uzhamai_data', JSON.stringify(data));
+  // Save to Cloud instead of localStorage
+  docRef.set(data).catch(err => console.error("Error saving to Cloud:", err));
 }
 
 // TOGGLE PASSWORD VISIBILITY
@@ -750,6 +831,10 @@ function doLogin() {
 }
 
 function initDashboard() {
+  // Set default order date to today
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('o-date').value = today;
+  document.getElementById('filterDate').value = today;
   updateClock();
   setInterval(updateClock, 1000);
   renderAll();
@@ -857,6 +942,7 @@ function renderOverview() {
 
 // ORDERS
 function addOrder() {
+  const orderDate = document.getElementById('o-date').value;
   const customer = document.getElementById('o-customer').value.trim();
   const fish = document.getElementById('o-fish').value.trim();
   const qty = parseFloat(document.getElementById('o-qty').value);
@@ -866,16 +952,56 @@ function addOrder() {
   const advance = parseFloat(document.getElementById('o-advance').value) || 0;
   const notes = document.getElementById('o-notes').value.trim();
 
-  if (!customer || !fish || !qty || !buy || !sell) return alert('Fill all required fields!');
+  if (!orderDate || !customer || !fish || !qty || !buy || !sell) return alert('Fill all required fields!');
 
-  data.orders.push({ id: Date.now(), date: new Date().toISOString(), customer, fish, qty, buy, sell, payment, advance, notes });
+  if (editingOrderId) {
+    const idx = data.orders.findIndex(o => o.id === editingOrderId);
+    if (idx !== -1) {
+      data.orders[idx] = { ...data.orders[idx], date: new Date(orderDate).toISOString(), customer, fish, qty, buy, sell, payment, advance, notes };
+    }
+    editingOrderId = null;
+    document.getElementById('orderBtn').textContent = 'Add Order';
+    document.getElementById('orderFormTitle').textContent = 'New Order';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+  } else {
+    data.orders.push({ id: Date.now(), date: new Date(orderDate).toISOString(), customer, fish, qty, buy, sell, payment, advance, notes });
+  }
+  
   saveData();
-
-  // Clear
-  ['o-customer','o-fish','o-qty','o-buy','o-sell','o-advance','o-notes'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('o-payment').value = 'pending';
-
+  resetOrderForm();
   renderAll();
+}
+
+function resetOrderForm() {
+  editingOrderId = null;
+  ['o-customer','o-fish','o-qty','o-buy','o-sell','o-advance','o-notes'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('o-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('o-payment').value = 'pending';
+  document.getElementById('orderBtn').textContent = 'Add Order';
+  document.getElementById('orderFormTitle').textContent = 'New Order';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+}
+
+function editOrder(id) {
+  const o = data.orders.find(o => o.id === id);
+  if (!o) return;
+
+  editingOrderId = id;
+  document.getElementById('o-date').value = o.date.split('T')[0];
+  document.getElementById('o-customer').value = o.customer;
+  document.getElementById('o-fish').value = o.fish;
+  document.getElementById('o-qty').value = o.qty;
+  document.getElementById('o-buy').value = o.buy;
+  document.getElementById('o-sell').value = o.sell;
+  document.getElementById('o-payment').value = o.payment;
+  document.getElementById('o-advance').value = o.advance;
+  document.getElementById('o-notes').value = o.notes;
+
+  document.getElementById('orderBtn').textContent = 'Update Order';
+  document.getElementById('orderFormTitle').textContent = 'Edit Order';
+  document.getElementById('cancelEditBtn').style.display = 'inline-block';
+  
+  document.getElementById('sec-orders').scrollIntoView({ behavior: 'smooth' });
 }
 
 function renderOrders() {
@@ -891,7 +1017,6 @@ function renderOrders() {
   document.getElementById('ordersTable').innerHTML = orders.map(o => {
     const profit = o.qty * (o.sell - o.buy);
     const revenue = o.qty * o.sell;
-    const balance = payment === 'paid' ? 0 : revenue - o.advance;
     return `<tr>
       <td>${new Date(o.date).toLocaleDateString('en-IN')}</td>
       <td>${o.customer}</td>
@@ -903,7 +1028,8 @@ function renderOrders() {
         <span class="badge ${o.payment==='paid'?'badge-green':o.payment==='advance'?'badge-orange':'badge-red'}">${o.payment}</span>
         ${o.advance > 0 ? `<br><small style="color:#7a9cc0">Adv: ₹${o.advance}</small>` : ''}
       </td>
-      <td>
+      <td style="display:flex; gap:5px; flex-wrap:wrap">
+        <button class="btn btn-sm" style="background:var(--blue); color:white" onclick="editOrder(${o.id})">Edit</button>
         <select onchange="updateOrderPayment(${o.id}, this.value)" style="padding:4px 8px;background:var(--navy);border:1px solid var(--border);border-radius:4px;color:white;font-size:11px;">
           <option ${o.payment==='pending'?'selected':''} value="pending">Pending</option>
           <option ${o.payment==='advance'?'selected':''} value="advance">Advance</option>
@@ -1203,6 +1329,58 @@ function renderPaymentSplit() {
       <div style="font-size:12px;color:#7a9cc0;margin-bottom:4px">Total Payments Received</div>
       <div style="font-size:24px;font-weight:800;color:var(--green);font-family:'Outfit'">₹${data.payments.reduce((s,p)=>s+p.amount,0).toLocaleString('en-IN')}</div>
     </div>`;
+}
+
+// PDF GENERATION
+async function downloadPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const filterDate = document.getElementById('filterDate').value;
+  
+  let orders = [...data.orders];
+  if (filterDate) orders = orders.filter(o => o.date.startsWith(filterDate));
+  
+  const reportTitle = filterDate ? `Report for ${new Date(filterDate).toLocaleDateString('en-IN')}` : "Full Sales Report";
+
+  // Logo
+  const img = new Image();
+  img.src = 'lo2.png';
+  
+  doc.setProperties({ title: 'Uzhamai Aquanics Report' });
+  
+  // Add Header
+  doc.addImage(img, 'PNG', 10, 10, 25, 25);
+  doc.setFontSize(20);
+  doc.setTextColor(26, 79, 160);
+  doc.text("UZHAMAI AQUANICS", 40, 22);
+  doc.setFontSize(10);
+  doc.setTextColor(100, 116, 139);
+  doc.text("Clean Tech. Green Growth. Fresh Harvest.", 40, 28);
+  doc.text(reportTitle, 40, 34);
+  
+  doc.line(10, 40, 200, 40);
+
+  const tableData = orders.map(o => [
+    new Date(o.date).toLocaleDateString('en-IN'),
+    o.customer,
+    o.fish,
+    o.qty + 'kg',
+    'Rs.' + (o.qty * o.sell),
+    'Rs.' + (o.qty * (o.sell - o.buy)),
+    o.payment
+  ]);
+
+  doc.autoTable({
+    startY: 45,
+    head: [['Date', 'Customer', 'Fish', 'Qty', 'Revenue', 'Profit', 'Status']],
+    body: tableData,
+    theme: 'striped',
+    headStyles: { fillColor: [26, 79, 160] }
+  });
+
+  const finalY = doc.lastAutoTable.finalY || 50;
+  doc.text(`Total Orders: ${orders.length}`, 14, finalY + 10);
+  doc.save(`Uzhamai_Report_${filterDate || 'All'}.pdf`);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
