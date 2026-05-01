@@ -440,7 +440,7 @@
         <div class="brand-text">
         UZHAMAI <span style="color: var(--cyan); font-size: inherit;">AQUANICS</span>
         </div>
-        <span class="sub-logo">Business Dashboard <span style="font-size: 10px; font-weight: 800; color: var(--blue); opacity: 1;">v1.0.9</span></span>
+        <span class="sub-logo">Business Dashboard <span style="font-size: 11px; font-weight: 900; color: var(--blue); background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">v1.1.0</span></span>
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:20px">
@@ -803,7 +803,7 @@ function downloadBackup() {
         key.toString().length,
         ...dataRows.map(row => (row[key] ? row[key].toString().length : 0))
       );
-      return { wch: maxLen + 5 }; // Adding padding for alignment
+      return { wch: maxLen + 8 }; // Increased padding for a cleaner, professional alignment
     });
   };
 
@@ -817,14 +817,14 @@ function downloadBackup() {
     'Fish': o.fish,
     'Qty (kg)': o.qty,
     'Buy Price': o.buy,
-    'Sell Price': o.sell,
-    'Revenue': o.qty * o.sell,
-    'Profit': o.qty * (o.sell - o.buy),
-    'Payment': o.payment,
+    'Selling Price': o.sell,
+    'Total Revenue': o.qty * o.sell,
+    'Net Profit': o.qty * (o.sell - o.buy),
+    'Status': o.payment,
     'Advance': o.advance,
     'Notes': o.notes || ''
   }));
-  const wsOrders = XLSX.utils.json_to_sheet(ordersData, { origin: "A4" });
+  const wsOrders = XLSX.utils.json_to_sheet(ordersData, { origin: "A5" });
   XLSX.utils.sheet_add_aoa(wsOrders, headerInfo, { origin: "A1" });
   wsOrders['!cols'] = autoWidth(ordersData);
   XLSX.utils.book_append_sheet(wb, wsOrders, "Orders");
@@ -838,7 +838,7 @@ function downloadBackup() {
     'Buy Price': s.price,
     'Supplier': s.supplier
   }));
-  const wsStock = XLSX.utils.json_to_sheet(stockData, { origin: "A4" });
+  const wsStock = XLSX.utils.json_to_sheet(stockData, { origin: "A5" });
   XLSX.utils.sheet_add_aoa(wsStock, headerInfo, { origin: "A1" });
   wsStock['!cols'] = autoWidth(stockData);
   XLSX.utils.book_append_sheet(wb, wsStock, "Stock");
@@ -851,7 +851,7 @@ function downloadBackup() {
     'Area': c.area || '',
     'Date Joined': c.date ? new Date(c.date).toLocaleDateString('en-IN') : ''
   }));
-  const wsCust = XLSX.utils.json_to_sheet(custData, { origin: "A4" });
+  const wsCust = XLSX.utils.json_to_sheet(custData, { origin: "A5" });
   XLSX.utils.sheet_add_aoa(wsCust, headerInfo, { origin: "A1" });
   wsCust['!cols'] = autoWidth(custData);
   XLSX.utils.book_append_sheet(wb, wsCust, "Customers");
@@ -864,7 +864,7 @@ function downloadBackup() {
     'Type': p.type,
     'Notes': p.notes || ''
   }));
-  const wsPay = XLSX.utils.json_to_sheet(payData, { origin: "A4" });
+  const wsPay = XLSX.utils.json_to_sheet(payData, { origin: "A5" });
   XLSX.utils.sheet_add_aoa(wsPay, headerInfo, { origin: "A1" });
   wsPay['!cols'] = autoWidth(payData);
   XLSX.utils.book_append_sheet(wb, wsPay, "Payments");
