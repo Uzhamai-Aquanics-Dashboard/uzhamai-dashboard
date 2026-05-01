@@ -440,13 +440,14 @@
         <div class="brand-text">
         UZHAMAI <span style="color: var(--cyan); font-size: inherit;">AQUANICS</span>
         </div>
-        <span class="sub-logo">Business Dashboard <span style="font-size: 11px; font-weight: 900; color: var(--blue); background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">v1.1.0</span></span>
+        <span class="sub-logo">Business Dashboard <span style="font-size: 11px; font-weight: 900; color: var(--blue); background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">v1.1.1</span></span>
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:20px">
       <div id="saveStatus" style="font-size: 9px; color: var(--green); font-weight: 700; opacity: 0.5;"></div>
       <div class="header-actions">
         <button class="action-btn" onclick="downloadBackup()">DOWNLOAD EXCEL</button>
+        <button class="action-btn" style="color:var(--red); border-color:rgba(239,68,68,0.2)" onclick="doLogout()">LOGOUT</button>
       </div>
       <div class="header-date" id="headerDate"></div>
     </div>
@@ -898,12 +899,19 @@ function doLogin() {
   if (pw === PASSWORD) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
-    localStorage.setItem('ua_logged_in', 'true'); // Persistent login
+    sessionStorage.setItem('ua_logged_in', 'true'); // Session-based login
     loadData();
     initDashboard();
   } else {
     document.getElementById('loginErr').style.display = 'block';
   }
+}
+
+function doLogout() {
+  if(!confirm("Are you sure you want to logout?")) return;
+  sessionStorage.removeItem('ua_logged_in');
+  localStorage.removeItem('ua_logged_in'); // Clean up any old persistent logins
+  location.reload();
 }
 
 function initDashboard() {
@@ -1592,8 +1600,8 @@ async function downloadPDF() {
 document.addEventListener('DOMContentLoaded', () => {
   if(document.getElementById('pwInput')) document.getElementById('pwInput').value = '';
   
-  // Auto-login check: Keeps user logged in across refreshes
-  if (localStorage.getItem('ua_logged_in') === 'true') {
+  // Auto-login check: Keeps user logged in only for the current session/tab
+  if (sessionStorage.getItem('ua_logged_in') === 'true' || localStorage.getItem('ua_logged_in') === 'true') {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     loadData();
