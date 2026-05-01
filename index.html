@@ -30,24 +30,13 @@
 
   body {
     font-family: 'Inter', -apple-system, sans-serif;
-    background-color: var(--navy);
-    background-image:
-      radial-gradient(circle at 15% 25%, rgba(0, 180, 216, 0.15) 0%, transparent 45%),
-      radial-gradient(circle at 85% 75%, rgba(26, 79, 160, 0.12) 0%, transparent 45%),
-      radial-gradient(circle at 50% 50%, rgba(0, 180, 216, 0.06) 0%, transparent 60%),
+    background: 
       linear-gradient(135deg, #ffffff 0%, #e0f2fe 100%);
     background-attachment: fixed;
-    background-size: 150% 150%;
-    animation: ambientLight 30s ease infinite alternate;
     color: var(--white);
     min-height: 100vh;
     position: relative;
     overflow-x: hidden;
-  }
-
-  @keyframes ambientLight {
-    0% { background-position: 0% 0%; }
-    100% { background-position: 100% 50%; }
   }
 
   /* LOGIN */
@@ -62,7 +51,7 @@
   .login-box {
     position: relative;
     z-index: 10;
-    background: rgba(255, 255, 255, 0.95);
+    background: #ffffff;
     border: 1px solid rgba(0, 180, 216, 0.2);
     border-radius: 24px;
     padding: 48px 40px;
@@ -139,7 +128,7 @@
 
   /* HEADER */
   .header {
-    background: rgba(255, 255, 255, 0.95);
+    background: #ffffff;
     border-bottom: 1px solid var(--border);
     padding: 12px 24px;
     display: flex;
@@ -166,7 +155,7 @@
     gap: 4px;
     padding: 16px 24px;
     overflow-x: auto;
-    background: rgba(255, 255, 255, 0.95);
+    background: #ffffff;
     border-bottom: 1px solid #edf2f7;
     -ms-overflow-style: none; /* IE and Edge */
     scrollbar-width: none; /* Firefox */
@@ -210,7 +199,7 @@
   }
 
   .stat-card {
-    background: rgba(255, 255, 255, 0.95);
+    background: #ffffff;
     border: 1px solid var(--border);
     border-radius: 14px;
     padding: 20px 16px;
@@ -230,7 +219,7 @@
 
   /* CARD */
   .card {
-    background: rgba(255, 255, 255, 0.95);
+    background: #ffffff;
     border: 1px solid var(--border);
     border-radius: 14px;
     padding: 20px;
@@ -358,7 +347,7 @@
 
   /* SUMMARY BAR */
   .summary-bar {
-    background: rgba(255, 255, 255, 0.9);
+    background: #ffffff;
     border: 1px solid var(--border);
     border-radius: 14px;
     padding: 20px 24px;
@@ -451,14 +440,13 @@
         <div class="brand-text">
         UZHAMAI <span style="color: var(--cyan); font-size: inherit;">AQUANICS</span>
         </div>
-        <span class="sub-logo">Business Dashboard <span style="font-size: 10px; font-weight: 800; color: var(--blue); opacity: 1;">v1.0.8</span></span>
+        <span class="sub-logo">Business Dashboard <span style="font-size: 10px; font-weight: 800; color: var(--blue); opacity: 1;">v1.0.9</span></span>
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:20px">
       <div id="saveStatus" style="font-size: 9px; color: var(--green); font-weight: 700; opacity: 0.5;"></div>
       <div class="header-actions">
         <button class="action-btn" onclick="downloadBackup()">DOWNLOAD EXCEL</button>
-        <button class="action-btn refresh" onclick="location.reload()">REFRESH PAGE</button>
       </div>
       <div class="header-date" id="headerDate"></div>
     </div>
@@ -805,6 +793,19 @@ function downloadBackup() {
   if(!confirm("Do you want to download all records as an Excel file?")) return;
   
   const wb = XLSX.utils.book_new();
+  
+  // Function to calculate column widths for a "neat" look
+  const autoWidth = (dataRows) => {
+    if (dataRows.length === 0) return [];
+    const keys = Object.keys(dataRows[0]);
+    return keys.map(key => {
+      const maxLen = Math.max(
+        key.toString().length,
+        ...dataRows.map(row => (row[key] ? row[key].toString().length : 0))
+      );
+      return { wch: maxLen + 5 }; // Adding padding for alignment
+    });
+  };
 
   // Company Header for Excel
   const headerInfo = [["UZHAMAI AQUANICS BUSINESS REPORT"], ["Date:", new Date().toLocaleDateString('en-IN')], []];
@@ -825,6 +826,7 @@ function downloadBackup() {
   }));
   const wsOrders = XLSX.utils.json_to_sheet(ordersData, { origin: "A4" });
   XLSX.utils.sheet_add_aoa(wsOrders, headerInfo, { origin: "A1" });
+  wsOrders['!cols'] = autoWidth(ordersData);
   XLSX.utils.book_append_sheet(wb, wsOrders, "Orders");
 
   // Prepare Stock Data
@@ -838,6 +840,7 @@ function downloadBackup() {
   }));
   const wsStock = XLSX.utils.json_to_sheet(stockData, { origin: "A4" });
   XLSX.utils.sheet_add_aoa(wsStock, headerInfo, { origin: "A1" });
+  wsStock['!cols'] = autoWidth(stockData);
   XLSX.utils.book_append_sheet(wb, wsStock, "Stock");
 
   // Prepare Customers Data
@@ -850,6 +853,7 @@ function downloadBackup() {
   }));
   const wsCust = XLSX.utils.json_to_sheet(custData, { origin: "A4" });
   XLSX.utils.sheet_add_aoa(wsCust, headerInfo, { origin: "A1" });
+  wsCust['!cols'] = autoWidth(custData);
   XLSX.utils.book_append_sheet(wb, wsCust, "Customers");
 
   // Prepare Payments Data
@@ -862,6 +866,7 @@ function downloadBackup() {
   }));
   const wsPay = XLSX.utils.json_to_sheet(payData, { origin: "A4" });
   XLSX.utils.sheet_add_aoa(wsPay, headerInfo, { origin: "A1" });
+  wsPay['!cols'] = autoWidth(payData);
   XLSX.utils.book_append_sheet(wb, wsPay, "Payments");
 
   XLSX.writeFile(wb, `Uzhamai_Aquanics_Full_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
