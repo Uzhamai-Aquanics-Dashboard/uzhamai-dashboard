@@ -472,7 +472,7 @@
         <div class="brand-text">
         UZHAMAI <span style="color: var(--cyan); font-size: inherit;">AQUANICS</span>
         </div>
-        <span class="sub-logo">Business Dashboard <span style="font-size: 10px; font-weight: 800; color: var(--blue); opacity: 1;">v1.0.6</span></span>
+        <span class="sub-logo">Business Dashboard <span style="font-size: 10px; font-weight: 800; color: var(--blue); opacity: 1;">v1.0.7</span></span>
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:20px">
@@ -809,7 +809,7 @@ function saveData() {
   try {
     localStorage.setItem('ua_dashboard_data', JSON.stringify(data));
     
-    // தரவு சேமிக்கப்பட்டதை உறுதி செய்ய ஒரு மெசேஜ்
+    // Confirmation message when data is saved
     const status = document.getElementById('saveStatus');
     if (status) {
       const now = new Date();
@@ -823,7 +823,7 @@ function saveData() {
 }
 
 function downloadBackup() {
-  if(!confirm("அனைத்து விவரங்களையும் Excel கோப்பாக டவுன்லோட் செய்யவா?")) return;
+  if(!confirm("Do you want to download all records as an Excel file?")) return;
   
   const wb = XLSX.utils.book_new();
 
@@ -1608,7 +1608,7 @@ async function downloadPDF() {
 document.addEventListener('DOMContentLoaded', () => {
   if(document.getElementById('pwInput')) document.getElementById('pwInput').value = '';
   
-  // Auto-login check: ஒருமுறை லாகின் செய்தால், டேப்பை மூடும் வரை மீண்டும் கேட்காது
+  // Auto-login check: Keeps user logged in across refreshes
   if (localStorage.getItem('ua_logged_in') === 'true') {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
@@ -1616,7 +1616,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initDashboard();
   }
 
-  // Date Sync: Filter தேதியை மாற்றினால், New Order தேதியும் தானாக மாறும்
+  // Date Sync: Updating the filter date also updates the New Order date
   const filterDateInput = document.getElementById('filterDate');
   if (filterDateInput) {
     filterDateInput.addEventListener('change', (e) => {
