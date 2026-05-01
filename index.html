@@ -11,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --navy: #ffffff;
@@ -423,7 +424,26 @@
     input[type="date"] {
       min-height: 44px !important;
     }
+    .header { flex-direction: column; gap: 15px; align-items: flex-start; }
+    .header > div:last-child { width: 100%; justify-content: space-between; }
   }
+
+  .header-actions { display: flex; gap: 8px; }
+  .action-btn {
+    padding: 6px 12px;
+    font-size: 10px;
+    font-weight: 800;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: white;
+    color: var(--blue);
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    font-family: 'Outfit', sans-serif;
+  }
+  .action-btn:hover { background: var(--light); border-color: var(--blue); }
+  .action-btn.refresh { color: var(--orange); }
 </style>
 </head>
 <body>
@@ -452,15 +472,17 @@
         <div class="brand-text">
         UZHAMAI <span style="color: var(--cyan); font-size: inherit;">AQUANICS</span>
         </div>
-        <span class="sub-logo">Business Dashboard <span style="font-size: 8px; opacity: 0.5;">v1.0.4</span></span>
-        <div style="display:flex; gap:8px; margin-top:6px">
-          <div id="saveStatus" style="font-size: 9px; color: var(--green); font-weight: 700; opacity: 0.5; align-self: center; margin-right: 5px;"></div>
-          <button onclick="downloadBackup()" style="font-size:9px; font-weight:700; color:var(--blue); background:rgba(26,79,160,0.05); border:1px solid rgba(26,79,160,0.1); border-radius:4px; padding:3px 8px; cursor:pointer">💾 BACKUP</button>
-          <button onclick="location.reload()" style="font-size:9px; font-weight:700; color:var(--orange); background:rgba(245,158,11,0.05); border:1px solid rgba(245,158,11,0.1); border-radius:4px; padding:3px 8px; cursor:pointer">🔄 REFRESH</button>
-        </div>
+        <span class="sub-logo">Business Dashboard <span style="font-size: 8px; opacity: 0.5;">v1.0.5</span></span>
       </div>
     </div>
-    <div class="header-date" id="headerDate"></div>
+    <div style="display:flex; align-items:center; gap:20px">
+      <div id="saveStatus" style="font-size: 9px; color: var(--green); font-weight: 700; opacity: 0.5;"></div>
+      <div class="header-actions">
+        <button class="action-btn" onclick="downloadBackup()">DOWNLOAD EXCEL</button>
+        <button class="action-btn refresh" onclick="location.reload()">REFRESH PAGE</button>
+      </div>
+      <div class="header-date" id="headerDate"></div>
+    </div>
   </div>
 
   <!-- NAV -->
@@ -801,17 +823,62 @@ function saveData() {
 }
 
 function downloadBackup() {
-  if(!confirm("எல்லா டேட்டாவையும் ஒரு ஃபைலாக டவுன்லோட் செய்யவா? (பாதுகாப்பிற்காக)")) return;
-  const json = JSON.stringify(data, null, 2);
-  const blob = new Blob([json], { type: "application/json" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `Uzhamai_Backup_${new Date().toLocaleDateString('en-IN').replace(/\//g,'-')}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  if(!confirm("அனைத்து விவரங்களையும் Excel கோப்பாக டவுன்லோட் செய்யவா?")) return;
+  
+  const wb = XLSX.utils.book_new();
+  
+  // Prepare Orders Data
+  const ordersData = data.orders.map(o => ({
+    'Date': new Date(o.date).toLocaleDateString('en-IN'),
+    'Customer': o.customer,
+    'Fish': o.fish,
+    'Qty (kg)': o.qty,
+    'Buy Price': o.buy,
+    'Sell Price': o.sell,
+    'Revenue': o.qty * o.sell,
+    'Profit': o.qty * (o.sell - o.buy),
+    'Payment': o.payment,
+    'Advance': o.advance,
+    'Notes': o.notes || ''
+  }));
+  const wsOrders = XLSX.utils.json_to_sheet(ordersData);
+  XLSX.utils.book_append_sheet(wb, wsOrders, "Orders");
+
+  // Prepare Stock Data
+  const stockData = data.stock.map(s => ({
+    'Date': new Date(s.date).toLocaleDateString('en-IN'),
+    'Fish': s.fish,
+    'Quantity': s.qty,
+    'Available': s.available,
+    'Buy Price': s.price,
+    'Supplier': s.supplier
+  }));
+  const wsStock = XLSX.utils.json_to_sheet(stockData);
+  XLSX.utils.book_append_sheet(wb, wsStock, "Stock");
+
+  // Prepare Customers Data
+  const custData = data.customers.map(c => ({
+    'Name': c.name,
+    'Phone': c.phone,
+    'Type': c.type,
+    'Area': c.area || '',
+    'Date Joined': c.date ? new Date(c.date).toLocaleDateString('en-IN') : ''
+  }));
+  const wsCust = XLSX.utils.json_to_sheet(custData);
+  XLSX.utils.book_append_sheet(wb, wsCust, "Customers");
+
+  // Prepare Payments Data
+  const payData = data.payments.map(p => ({
+    'Date': new Date(p.date).toLocaleDateString('en-IN'),
+    'Customer': p.customer,
+    'Amount': p.amount,
+    'Type': p.type,
+    'Notes': p.notes || ''
+  }));
+  const wsPay = XLSX.utils.json_to_sheet(payData);
+  XLSX.utils.book_append_sheet(wb, wsPay, "Payments");
+
+  XLSX.writeFile(wb, `Uzhamai_Aquanics_Full_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 }
 
 // TOGGLE PASSWORD VISIBILITY
