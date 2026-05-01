@@ -457,6 +457,10 @@
         </div>
         <span class="sub-logo">Business Dashboard <span style="font-size: 8px; opacity: 0.5;">v1.0.3</span></span>
         <div id="syncStatus" style="font-size: 9px; color: var(--green); margin-top: 2px; font-weight: 700;">● Cloud Synced</div>
+        <div style="display:flex; gap:8px; margin-top:6px">
+          <button onclick="downloadBackup()" style="font-size:9px; font-weight:700; color:var(--blue); background:rgba(26,79,160,0.05); border:1px solid rgba(26,79,160,0.1); border-radius:4px; padding:3px 8px; cursor:pointer">💾 BACKUP</button>
+          <button onclick="location.reload()" style="font-size:9px; font-weight:700; color:var(--orange); background:rgba(245,158,11,0.05); border:1px solid rgba(245,158,11,0.1); border-radius:4px; padding:3px 8px; cursor:pointer">🔄 REFRESH</button>
+        </div>
       </div>
     </div>
     <div class="header-date" id="headerDate"></div>
@@ -839,6 +843,20 @@ function saveData() {
       statusEl.innerHTML = `● Sync Error (Check Rules)`;
       statusEl.style.color = "var(--red)";
     });
+}
+
+function downloadBackup() {
+  if(!confirm("எல்லா டேட்டாவையும் ஒரு ஃபைலாக டவுன்லோட் செய்யவா? (பாதுகாப்பிற்காக)")) return;
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `Uzhamai_Backup_${new Date().toLocaleDateString('en-IN').replace(/\//g,'-')}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 // TOGGLE PASSWORD VISIBILITY
