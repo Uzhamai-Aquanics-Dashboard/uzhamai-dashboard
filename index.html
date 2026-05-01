@@ -455,7 +455,8 @@
         <div class="brand-text">
         UZHAMAI <span style="color: var(--cyan); font-size: inherit;">AQUANICS</span>
         </div>
-        <span class="sub-logo">Business Dashboard <span style="font-size: 8px; opacity: 0.5;">v1.0.1</span></span>
+        <span class="sub-logo">Business Dashboard <span style="font-size: 8px; opacity: 0.5;">v1.0.2</span></span>
+        <div id="syncStatus" style="font-size: 9px; color: var(--green); margin-top: 2px; font-weight: 700;">● Cloud Synced</div>
       </div>
     </div>
     <div class="header-date" id="headerDate"></div>
@@ -797,21 +798,32 @@ function loadData() {
       data.stock = data.stock || [];
       data.customers = data.customers || [];
       data.payments = data.payments || [];
+      
+      const now = new Date();
+      document.getElementById('syncStatus').innerHTML = `● Cloud Synced (${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')})`;
+      document.getElementById('syncStatus').style.color = "var(--green)";
       renderAll();
     } else {
-      console.log("Cloud-ல் டேட்டா இல்லை. புதியதாக உருவாக்கப்படுகிறது...");
       saveData();
     }
   }, (error) => {
     console.error("Error loading data from Cloud:", error);
-    if (error.code === 'permission-denied') {
+    document.getElementById('syncStatus').innerHTML = `● Sync Error`;
+    document.getElementById('syncStatus').style.color = "var(--red)";
+    
+    if (error.code === 'permission-denied' || error.code === 'failed-precondition') {
       alert("Firebase Rules-ல் 'Test Mode' ஆன் செய்யப்பட்டுள்ளதா என்று பாருங்கள்!");
     }
   });
 }
 
 function saveData() {
-  // Save to Cloud instead of localStorage
+  // Sanity Check: Prevent saving if data structure is missing to avoid accidental deletion
+  if (!data.orders || !Array.isArray(data.orders)) {
+    console.error("Data error: Prevents saving to protect records.");
+    return;
+  }
+  
   docRef.set(data).catch(err => console.error("Error saving to Cloud:", err));
 }
 
