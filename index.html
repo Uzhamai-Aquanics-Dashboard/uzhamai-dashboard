@@ -597,8 +597,12 @@
     <!-- STOCK -->
     <div class="section" id="sec-stock">
       <div class="card">
-        <div class="card-title">Add Stock</div>
+        <div class="card-title" id="stockFormTitle">Add Stock</div>
         <div class="form-row">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="s-date">
+          </div>
           <div class="form-group">
             <label>Fish Type</label>
             <input type="text" id="s-fish" placeholder="e.g. Vanjaram">
@@ -618,7 +622,8 @@
             <input type="text" id="s-supplier" placeholder="Supplier name">
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addStock()">Add Stock</button>
+        <button class="btn btn-primary" id="stockBtn" onclick="addStock()">Add Stock</button>
+        <button class="btn btn-sm" id="cancelStockEditBtn" style="display:none; margin-left:10px; background:#cbd5e1" onclick="resetStockForm()">Cancel</button>
       </div>
 
       <div class="card">
@@ -626,7 +631,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Fish</th><th>Available (kg)</th><th>Buy Price</th><th>Supplier</th><th>Added</th><th>Action</th></tr>
+              <tr><th>Fish</th><th>Available (kg)</th><th>Buy Price</th><th>Supplier</th><th>Date</th><th>Action</th></tr>
             </thead>
             <tbody id="stockTable"></tbody>
           </table>
@@ -637,8 +642,12 @@
     <!-- CUSTOMERS -->
     <div class="section" id="sec-customers">
       <div class="card">
-        <div class="card-title">Add Customer</div>
+        <div class="card-title" id="customerFormTitle">Add Customer</div>
         <div class="form-row">
+          <div class="form-group">
+            <label>Date Added</label>
+            <input type="date" id="c-date">
+          </div>
           <div class="form-group">
             <label>Customer Name</label>
             <input type="text" id="c-name" placeholder="Hotel Name">
@@ -665,7 +674,8 @@
             <input type="text" id="c-area" placeholder="e.g. Erode Town">
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addCustomer()">Add Customer</button>
+        <button class="btn btn-primary" id="customerBtn" onclick="addCustomer()">Add Customer</button>
+        <button class="btn btn-sm" id="cancelCustomerEditBtn" style="display:none; margin-left:10px; background:#cbd5e1" onclick="resetCustomerForm()">Cancel</button>
       </div>
 
       <div class="card">
@@ -673,7 +683,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>Name</th><th>Type</th><th>Phone</th><th>Area</th><th>Orders</th><th>Total ₹</th><th>Action</th></tr>
+              <tr><th>Date</th><th>Name</th><th>Type</th><th>Phone</th><th>Area</th><th>Orders</th><th>Total ₹</th><th>Action</th></tr>
             </thead>
             <tbody id="customersTable"></tbody>
           </table>
@@ -684,8 +694,12 @@
     <!-- PAYMENTS -->
     <div class="section" id="sec-payments">
       <div class="card">
-        <div class="card-title">Record Payment</div>
+        <div class="card-title" id="paymentFormTitle">Record Payment</div>
         <div class="form-row">
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="p-date">
+          </div>
           <div class="form-group">
             <label>Customer</label>
             <select id="p-customer"></select>
@@ -709,7 +723,8 @@
             <input type="text" id="p-notes" placeholder="Order reference, etc.">
           </div>
         </div>
-        <button class="btn btn-success" onclick="addPayment()">Record Payment</button>
+        <button class="btn btn-success" id="paymentBtn" onclick="addPayment()">Record Payment</button>
+        <button class="btn btn-sm" id="cancelPaymentEditBtn" style="display:none; margin-left:10px; background:#cbd5e1" onclick="resetPaymentForm()">Cancel</button>
       </div>
 
       <div class="card">
@@ -745,6 +760,9 @@ let data = {
   payments: []
 };
 let editingOrderId = null;
+let editingStockId = null;
+let editingCustomerId = null;
+let editingPaymentId = null;
 let db;
 
 // Firebase Configuration - REPLACE THIS WITH YOUR OWN CONFIG FROM FIREBASE CONSOLE
@@ -834,6 +852,9 @@ function initDashboard() {
   // Set default order date to today
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('o-date').value = today;
+  if (document.getElementById('s-date')) document.getElementById('s-date').value = today;
+  if (document.getElementById('c-date')) document.getElementById('c-date').value = today;
+  if (document.getElementById('p-date')) document.getElementById('p-date').value = today;
   document.getElementById('filterDate').value = today;
   updateClock();
   setInterval(updateClock, 1000);
@@ -852,7 +873,15 @@ function showTab(tab) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('sec-' + tab).classList.add('active');
-  event.target.classList.add('active');
+  
+  // Find and activate the correct tab button
+  const tabButtons = document.querySelectorAll('.nav-tab');
+  tabButtons.forEach(btn => {
+    if (btn.textContent.toLowerCase() === tab.toLowerCase()) {
+      btn.classList.add('active');
+    }
+  });
+
   if (tab === 'payments') populateCustomerSelect();
   renderAll();
 }
@@ -925,7 +954,7 @@ function renderOverview() {
   } else {
     document.getElementById('recentOrders').innerHTML = `
       <div class="table-wrap"><table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Fish</th><th>Qty</th><th>Profit</th><th>Status</th></tr></thead>
+        <thead><tr><th>Date</th><th>Customer</th><th>Fish</th><th>Qty</th><th>Profit</th><th>Status</th><th>Action</th></tr></thead>
         <tbody>${recent.map(o => `
           <tr>
             <td>${new Date(o.date).toLocaleDateString('en-IN')}</td>
@@ -934,6 +963,7 @@ function renderOverview() {
             <td>${o.qty}kg</td>
             <td class="${(o.qty*(o.sell-o.buy))>=0?'profit-positive':'profit-negative'}">₹${(o.qty*(o.sell-o.buy)).toLocaleString('en-IN')}</td>
             <td><span class="badge ${o.payment==='paid'?'badge-green':o.payment==='advance'?'badge-orange':'badge-red'}">${o.payment}</span></td>
+            <td><button class="btn btn-sm btn-primary" onclick="editOrder(${o.id})">Edit</button></td>
           </tr>`).join('')}
         </tbody>
       </table></div>`;
@@ -986,6 +1016,9 @@ function editOrder(id) {
   const o = data.orders.find(o => o.id === id);
   if (!o) return;
 
+  // Switch to orders tab automatically
+  showTab('orders');
+
   editingOrderId = id;
   document.getElementById('o-date').value = o.date.split('T')[0];
   document.getElementById('o-customer').value = o.customer;
@@ -1001,7 +1034,7 @@ function editOrder(id) {
   document.getElementById('orderFormTitle').textContent = 'Edit Order';
   document.getElementById('cancelEditBtn').style.display = 'inline-block';
   
-  document.getElementById('sec-orders').scrollIntoView({ behavior: 'smooth' });
+  document.querySelector('#sec-orders .card').scrollIntoView({ behavior: 'smooth' });
 }
 
 function renderOrders() {
@@ -1054,18 +1087,53 @@ function deleteOrder(id) {
 
 // STOCK
 function addStock() {
+  const date = document.getElementById('s-date').value;
   const fish = document.getElementById('s-fish').value.trim();
   const qty = parseFloat(document.getElementById('s-qty').value);
   const price = parseFloat(document.getElementById('s-price').value);
   const supplier = document.getElementById('s-supplier').value.trim();
 
-  if (!fish || !qty || !price) return alert('Fill all required fields!');
+  if (!date || !fish || !qty || !price) return alert('Fill all required fields!');
 
-  data.stock.push({ id: Date.now(), date: new Date().toISOString(), fish, qty, available: qty, price, supplier });
+  if (editingStockId) {
+    const idx = data.stock.findIndex(s => s.id === editingStockId);
+    if (idx !== -1) {
+      data.stock[idx] = { ...data.stock[idx], date: new Date(date).toISOString(), fish, qty, price, supplier };
+    }
+  } else {
+    data.stock.push({ id: Date.now(), date: new Date(date).toISOString(), fish, qty, available: qty, price, supplier });
+  }
+  
   saveData();
-
-  ['s-fish','s-qty','s-price','s-supplier'].forEach(id => document.getElementById(id).value = '');
+  resetStockForm();
   renderAll();
+}
+
+function resetStockForm() {
+  editingStockId = null;
+  ['s-fish','s-qty','s-price','s-supplier'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('s-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('stockBtn').textContent = 'Add Stock';
+  document.getElementById('stockFormTitle').textContent = 'Add Stock';
+  document.getElementById('cancelStockEditBtn').style.display = 'none';
+}
+
+function editStock(id) {
+  const s = data.stock.find(s => s.id === id);
+  if (!s) return;
+
+  editingStockId = id;
+  document.getElementById('s-date').value = s.date.split('T')[0];
+  document.getElementById('s-fish').value = s.fish;
+  document.getElementById('s-qty').value = s.qty;
+  document.getElementById('s-price').value = s.price;
+  document.getElementById('s-supplier').value = s.supplier || '';
+
+  document.getElementById('stockBtn').textContent = 'Update Stock';
+  document.getElementById('stockFormTitle').textContent = 'Edit Stock';
+  document.getElementById('cancelStockEditBtn').style.display = 'inline-block';
+  
+  document.querySelector('#sec-stock .card').scrollIntoView({ behavior: 'smooth' });
 }
 
 function renderStock() {
@@ -1080,7 +1148,10 @@ function renderStock() {
       <td>₹${s.price}/kg</td>
       <td>${s.supplier || '-'}</td>
       <td>${new Date(s.date).toLocaleDateString('en-IN')}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteStock(${s.id})">Delete</button></td>
+      <td style="display:flex; gap:5px">
+        <button class="btn btn-sm btn-primary" onclick="editStock(${s.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteStock(${s.id})">Delete</button>
+      </td>
     </tr>`).join('');
 }
 
@@ -1092,19 +1163,54 @@ function deleteStock(id) {
 
 // CUSTOMERS
 function addCustomer() {
+  const date = document.getElementById('c-date').value;
   const name = document.getElementById('c-name').value.trim();
   const phone = document.getElementById('c-phone').value.trim();
   const type = document.getElementById('c-type').value;
   const area = document.getElementById('c-area').value.trim();
 
-  if (!name || !phone) return alert('Name and phone required!');
-  if (data.customers.find(c => c.phone === phone)) return alert('Customer already exists!');
+  if (!date || !name || !phone) return alert('Name and phone required!');
+  
+  if (editingCustomerId) {
+    const idx = data.customers.findIndex(c => c.id === editingCustomerId);
+    if (idx !== -1) {
+      data.customers[idx] = { ...data.customers[idx], date: new Date(date).toISOString(), name, phone, type, area };
+    }
+  } else {
+    if (data.customers.find(c => c.phone === phone)) return alert('Customer already exists!');
+    data.customers.push({ id: Date.now(), date: new Date(date).toISOString(), name, phone, type, area });
+  }
 
-  data.customers.push({ id: Date.now(), name, phone, type, area });
   saveData();
-
-  ['c-name','c-phone','c-area'].forEach(id => document.getElementById(id).value = '');
+  resetCustomerForm();
   renderAll();
+}
+
+function resetCustomerForm() {
+  editingCustomerId = null;
+  ['c-name','c-phone','c-area'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('c-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('customerBtn').textContent = 'Add Customer';
+  document.getElementById('customerFormTitle').textContent = 'Add Customer';
+  document.getElementById('cancelCustomerEditBtn').style.display = 'none';
+}
+
+function editCustomer(id) {
+  const c = data.customers.find(c => c.id === id);
+  if (!c) return;
+
+  editingCustomerId = id;
+  document.getElementById('c-date').value = (c.date || new Date().toISOString()).split('T')[0];
+  document.getElementById('c-name').value = c.name;
+  document.getElementById('c-phone').value = c.phone;
+  document.getElementById('c-type').value = c.type;
+  document.getElementById('c-area').value = c.area || '';
+
+  document.getElementById('customerBtn').textContent = 'Update Customer';
+  document.getElementById('customerFormTitle').textContent = 'Edit Customer';
+  document.getElementById('cancelCustomerEditBtn').style.display = 'inline-block';
+  
+  document.querySelector('#sec-customers .card').scrollIntoView({ behavior: 'smooth' });
 }
 
 function renderCustomers() {
@@ -1116,13 +1222,17 @@ function renderCustomers() {
     const orders = data.orders.filter(o => o.customer === c.name);
     const total = orders.reduce((s,o) => s + o.qty*o.sell, 0);
     return `<tr>
+      <td>${c.date ? new Date(c.date).toLocaleDateString('en-IN') : '-'}</td>
       <td><strong>${c.name}</strong></td>
       <td><span class="badge badge-blue">${c.type}</span></td>
       <td>${c.phone}</td>
       <td>${c.area || '-'}</td>
       <td>${orders.length}</td>
       <td>₹${total.toLocaleString('en-IN')}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})">Delete</button></td>
+      <td style="display:flex; gap:5px">
+        <button class="btn btn-sm btn-primary" onclick="editCustomer(${c.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteCustomer(${c.id})">Delete</button>
+      </td>
     </tr>`;
   }).join('');
 }
@@ -1143,19 +1253,54 @@ function populateCustomerSelect() {
 }
 
 function addPayment() {
+  const date = document.getElementById('p-date').value;
   const customer = document.getElementById('p-customer').value;
   const amount = parseFloat(document.getElementById('p-amount').value);
   const type = document.getElementById('p-type').value;
   const notes = document.getElementById('p-notes').value.trim();
 
-  if (!customer || !amount) return alert('Fill all fields!');
+  if (!date || !customer || !amount) return alert('Fill all fields!');
 
-  data.payments.push({ id: Date.now(), date: new Date().toISOString(), customer, amount, type, notes });
+  if (editingPaymentId) {
+    const idx = data.payments.findIndex(p => p.id === editingPaymentId);
+    if (idx !== -1) {
+      data.payments[idx] = { ...data.payments[idx], date: new Date(date).toISOString(), customer, amount, type, notes };
+    }
+  } else {
+    data.payments.push({ id: Date.now(), date: new Date(date).toISOString(), customer, amount, type, notes });
+  }
+  
   saveData();
+  resetPaymentForm();
+  renderAll();
+}
 
+function resetPaymentForm() {
+  editingPaymentId = null;
   document.getElementById('p-amount').value = '';
   document.getElementById('p-notes').value = '';
-  renderAll();
+  document.getElementById('p-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('paymentBtn').textContent = 'Record Payment';
+  document.getElementById('paymentFormTitle').textContent = 'Record Payment';
+  document.getElementById('cancelPaymentEditBtn').style.display = 'none';
+}
+
+function editPayment(id) {
+  const p = data.payments.find(p => p.id === id);
+  if (!p) return;
+
+  editingPaymentId = id;
+  document.getElementById('p-date').value = p.date.split('T')[0];
+  document.getElementById('p-customer').value = p.customer;
+  document.getElementById('p-amount').value = p.amount;
+  document.getElementById('p-type').value = p.type;
+  document.getElementById('p-notes').value = p.notes || '';
+
+  document.getElementById('paymentBtn').textContent = 'Update Payment';
+  document.getElementById('paymentFormTitle').textContent = 'Edit Payment';
+  document.getElementById('cancelPaymentEditBtn').style.display = 'inline-block';
+  
+  document.querySelector('#sec-payments .card').scrollIntoView({ behavior: 'smooth' });
 }
 
 function renderPayments() {
@@ -1385,6 +1530,14 @@ async function downloadPDF() {
 
 document.addEventListener('DOMContentLoaded', () => {
   if(document.getElementById('pwInput')) document.getElementById('pwInput').value = '';
+  
+  // Date Sync: Filter தேதியை மாற்றினால், New Order தேதியும் தானாக மாறும்
+  const filterDateInput = document.getElementById('filterDate');
+  if (filterDateInput) {
+    filterDateInput.addEventListener('change', (e) => {
+      if (e.target.value) document.getElementById('o-date').value = e.target.value;
+    });
+  }
 });
 </script>
 </body>
