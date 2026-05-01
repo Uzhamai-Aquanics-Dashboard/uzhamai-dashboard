@@ -440,7 +440,7 @@
         <div class="brand-text">
         UZHAMAI <span style="color: var(--cyan); font-size: inherit;">AQUANICS</span>
         </div>
-        <span class="sub-logo">Business Dashboard <span style="font-size: 11px; font-weight: 900; color: var(--blue); background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">v1.1.1</span></span>
+        <span class="sub-logo">Business Dashboard <span style="font-size: 11px; font-weight: 900; color: var(--blue); background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">v1.2.0</span></span>
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:20px">
@@ -460,6 +460,7 @@
     <button class="nav-tab" onclick="showTab('stock')">Stock</button>
     <button class="nav-tab" onclick="showTab('customers')">Customers</button>
     <button class="nav-tab" onclick="showTab('payments')">Payments</button>
+    <button class="nav-tab" onclick="showTab('settings')">Settings</button>
   </div>
 
   <div class="main">
@@ -738,18 +739,36 @@
       </div>
     </div>
 
+    <!-- SETTINGS -->
+    <div class="section" id="sec-settings">
+      <div class="card">
+        <div class="card-title">Security & Password</div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label>Current Password</label>
+          <div style="display:flex; gap:10px; align-items:center">
+            <input type="password" id="current-pw-display" readonly style="background:#f1f5f9; flex:1">
+            <button class="btn btn-sm" style="background:var(--border); color:var(--blue)" onclick="toggleSettingsPw()">VIEW</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label>New Password</label>
+          <input type="text" id="new-pw-input" placeholder="Enter new password">
+        </div>
+        <button class="btn btn-primary" onclick="updatePassword()">Update Password</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <script>
-const PASSWORD = "UAHP06";
-
 // DATA
 let data = {
   orders: [],
   stock: [],
   customers: [],
-  payments: []
+  payments: [],
+  settings: { password: "UAHP06" }
 };
 let editingOrderId = null;
 let editingStockId = null;
@@ -766,6 +785,7 @@ function loadData() {
       data.stock = data.stock || [];
       data.customers = data.customers || [];
       data.payments = data.payments || [];
+      data.settings = data.settings || { password: "UAHP06" };
     } catch (e) {
       console.error("Error parsing stored data", e);
     }
@@ -886,17 +906,52 @@ function togglePassword() {
   }
 }
 
+// Settings Password View Toggle
+function toggleSettingsPw() {
+  const input = document.getElementById('current-pw-display');
+  const btn = event.target;
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = 'HIDE';
+  } else {
+    input.type = 'password';
+    btn.textContent = 'VIEW';
+  }
+}
+
+function updatePassword() {
+  const newPw = document.getElementById('new-pw-input').value.trim();
+  if (newPw.length < 4) return alert("Password must be at least 4 characters.");
+  if (confirm("Change password to: " + newPw + "?")) {
+    data.settings.password = newPw;
+    saveData();
+    document.getElementById('new-pw-input').value = '';
+    renderSettings();
+    alert("Password updated successfully!");
+  }
+}
+
 // LOGIN
 function doLogin() {
   const pwInput = document.getElementById('pwInput');
   const pw = pwInput.value;
   
+  // Get target password from stored data or default
+  const saved = localStorage.getItem('ua_dashboard_data');
+  let targetPw = "UAHP06";
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (parsed.settings && parsed.settings.password) targetPw = parsed.settings.password;
+    } catch(e) {}
+  }
+
   // Clear the field and reset type after attempt
   pwInput.value = '';
   pwInput.type = 'password';
   document.getElementById('eyeIcon').textContent = 'SHOW';
 
-  if (pw === PASSWORD) {
+  if (pw === targetPw) {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     sessionStorage.setItem('ua_logged_in', 'true'); // Session-based login
@@ -949,6 +1004,7 @@ function showTab(tab) {
   });
 
   if (tab === 'payments') populateCustomerSelect();
+  if (tab === 'settings') renderSettings();
   renderAll();
 }
 
@@ -959,6 +1015,12 @@ function renderAll() {
   renderCustomers();
   renderPayments();
   renderStatistics();
+}
+
+function renderSettings() {
+  const display = document.getElementById('current-pw-display');
+  display.value = data.settings.password;
+  display.type = 'password';
 }
 
 // OVERVIEW
@@ -1600,8 +1662,8 @@ async function downloadPDF() {
 document.addEventListener('DOMContentLoaded', () => {
   if(document.getElementById('pwInput')) document.getElementById('pwInput').value = '';
   
-  // Auto-login check: Keeps user logged in only for the current session/tab
-  if (sessionStorage.getItem('ua_logged_in') === 'true' || localStorage.getItem('ua_logged_in') === 'true') {
+  // Auto-login check: Only keeps user logged in for the current session/tab
+  if (sessionStorage.getItem('ua_logged_in') === 'true') {
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     loadData();
